@@ -1,0 +1,159 @@
+---
+title: "Lab5 Solutions"
+author: "Rushal Sohal; github: rushalsohal"
+date: "4/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+acc <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/accident.csv", stringsAsFactors = FALSE)
+pers <- read.csv("https://raw.githubusercontent.com/xdaiISU/ds202materials/master/hwlabs/fars2017/person.csv", stringsAsFactors = FALSE)
+```
+
+# Part 1
+
+#1
+```{r}
+table(acc$DAY_WEEK)
+```
+
+Saturday seems to have more traffic accidents than any other day. Besides, weekends overall have comparatively more accidents.
+
+#2
+
+```{r}
+table(acc$HOUR)
+```
+
+Accidents tend to happen the most between 5pm and 9pm. Moreover, accidents are fewer in the morning between 7am and 9am.
+
+#3
+
+```{r}
+acc %>% 
+  filter(DRUNK_DR >= 1) %>% 
+  summarize(n = n())
+```
+
+There are 8769 accidents involving at least one drunk driver.
+
+#Part 2
+
+#4
+
+```{r}
+pertyp <- pers %>% filter(PER_TYP == 1)
+head(pertyp)
+```
+
+#5
+
+```{r}
+joined <- full_join(acc, pers)
+head(joined)
+```
+
+#6
+
+```{r}
+day_week <- table(joined$DAY_WEEK)
+ggplot(joined, aes(DAY_WEEK))+
+  geom_bar(stat="count", width=0.7, fill="steelblue")+
+  theme_minimal()
+```
+
+We can see that more accidents tend to happen over the weekend as more people are out drinking on weekends.
+
+```{r}
+hour <- table(joined$HOUR)
+ggplot(joined, aes(HOUR))+
+  geom_bar(stat="count", width=0.5, fill="steelblue")+
+  theme_minimal()
+```
+
+We can see that most accidents happen between 5pm and 9pm.
+
+```{r}
+sex <- table(joined$SEX)
+ggplot(joined, aes(SEX))+
+  geom_bar(stat="count", width=0.7, fill="steelblue")+
+  theme_minimal()
+```
+
+We can see that men are in approximately double the accidents that women are in. It could be because of rash driving by men and that men in general drive more than women. 
+
+#7,8
+
+```{r}
+glc <- readxl::read_xlsx('FRPP GLC - United StatesFeb132020.xlsx')
+glc <- glc %>% 
+   select('State Name', STATE = 'State Code', COUNTY = 'County Code', 'County Name') %>% 
+   unique()
+#cleaning
+glc$STATE <- as.integer(glc$STATE)
+glc$COUNTY <- as.integer(glc$COUNTY)
+glc$`State Name` <- tolower(glc$`State Name`)
+glc$`County Name` <- tolower(glc$`County Name`)
+```
+
+```{r}
+#joining acc and glc
+choro <- acc %>% 
+   select(STATE, ST_CASE, COUNTY) %>% 
+   group_by(STATE, COUNTY) %>% 
+   summarize(accidents = n()) %>% 
+   left_join(glc, by = c('STATE', 'COUNTY'))
+```
+
+```{r}
+#loading map data
+counties <- map_data('county')
+counties <- counties %>% 
+   mutate(`State Name` = region, `County Name` = subregion) %>% 
+   select(`State Name`, `County Name`, long, lat, group, order)
+```
+
+```{r}
+#full join on all three
+choro <- choro %>%
+   full_join(counties, by = c('State Name', 'County Name'))
+choro <- choro[order(choro$order), ]
+```
+
+```{r}
+#plotting the graph
+ggplot(choro, aes(long, lat)) + 
+   geom_polygon(aes(group = group, fill = accidents)) +
+   xlab('Longitude') +
+   ylab('Latitude') +
+   ggtitle('No. of Accidents by County')
+```
+
+Most counties have less than 200 accidents. However, some areas like parts of Texas and California have higher number of cases.
+
+#9
+
+```{r}
+ggplot(data = choro, aes(x=long, y=lat)) +
+  geom_polygon(aes(group=group)) +
+  geom_point(data = joined %>% filter(MONTH %in% c(1,2,12)), aes(x=LONGITUD, y=LATITUDE), color = 'steelblue', alpha = .2, size = .02) +
+  xlim(c(-130, -60)) + ylim(c(20, 50))
+
+ggplot(data = choro, aes(x=long, y=lat)) +
+  geom_polygon(aes(group=group)) +
+  geom_point(data = joined %>% filter(MONTH %in% c(6,7,8)), aes(x=LONGITUD, y=LATITUDE), color = 'steelblue', alpha = .2, size = .02) +
+  xlim(c(-130, -60)) + ylim(c(20, 50))
+```
+
+It seems that summer has more number of accidents compared to winter. In winter, the accidents are mainly in the northern parts of the country. Besides, East Coast tends to have more accidents than the West.
+
+
+
+
+
+
